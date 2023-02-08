@@ -49,6 +49,17 @@ import sys
 
 ROW = 3
 COL = 3
+MAX_DEPTH = 10
+
+class Node:
+    def __init__(self, value : int or str, position : tuple):
+        self.value = value
+        self.position = position
+    
+
+class State:
+    def __init__(self):
+        self.board = [[Node(0, (0, 0)) for i in range(COL)] for j in range(ROW)]
 
 
 if len(sys.argv) != 3:
@@ -64,18 +75,8 @@ if algorithm_name not in ["dfs", "ids", "astar1", "astar2"]:
 
 # Read input file
 with open(input_file_path, "r") as f:
-    lines = f.readlines()
-    initial_state = []
-    for line in lines:
-        line = line.strip().split(' ')
-        for i in line:
-            if i != "*":
-                initial_state.append(int(i))
-            else:
-                initial_state.append('*')
-
-# Check if the input is valid
-if len(initial_state) != 9:
-    print("Invalid input")
-    sys.exit(1)
+    input_list = f.readlines()
+    for i in range(len(input_list)):
+        input_list[i] = input_list[i].strip()
+        
 
