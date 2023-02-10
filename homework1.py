@@ -46,20 +46,42 @@ For example: python homework1.py <algorithm_name> <input_file_path>
 '''
 
 import sys
+import copy
 
 ROW = 3
 COL = 3
 MAX_DEPTH = 10
+GOAL_STATE = """7 8 1
+6 * 2
+5 4 3"""
 
-class Node:
-    def __init__(self, value : int or str, position : tuple):
-        self.value = value
-        self.position = position
-    
 
 class State:
     def __init__(self):
-        self.board = [[Node(0, (0, 0)) for i in range(COL)] for j in range(ROW)]
+        self.board = [[None for _ in range(COL)] for _ in range(ROW)]
+        self.current_position : tuple = None
+
+    def move(self, new_position: tuple):
+        x, y = self.current_position
+        new_x, new_y = new_position
+        self.board[x][y], self.board[new_x][new_y] = self.board[new_x][new_y], self.board[x][y]
+        self.current_position = new_position
+    
+    def get_possible_moves(self):
+        x, y = self.current_position
+        moves = []
+        if x > 0:
+            moves.append((x-1, y))
+        if x < ROW-1:
+            moves.append((x+1, y))
+        if y > 0:
+            moves.append((x, y-1))
+        if y < COL-1:
+            moves.append((x, y+1))
+        return moves
+
+    def __str__(self) -> str:
+        return "\n".join([" ".join([str(self.board[i][j]) for j in range(COL)]) for i in range(ROW)])
 
 
 if len(sys.argv) != 3:
@@ -73,10 +95,54 @@ if algorithm_name not in ["dfs", "ids", "astar1", "astar2"]:
     print("Invalid algorithm name")
     sys.exit(1)
 
-# Read input file
+# Read input file and store it in the initial state
 with open(input_file_path, "r") as f:
     input_list = f.readlines()
-    for i in range(len(input_list)):
-        input_list[i] = input_list[i].strip()
-        
+    state = State()
+    for i in range(ROW):
+        for j, value in enumerate(input_list[i].split()):
+            state.board[i][j] = value
+            if (value == "*"):
+                state.current_position = (i, j)
 
+def is_goal(state: State):
+    return str(state) == GOAL_STATE
+
+def dfs(state: State, depth: int, visited: set, moves: list, max_depth: int = MAX_DEPTH):
+    if is_goal(state):
+        moves.append(state)
+        return state, moves
+    if depth == max_depth:
+        return None
+    if str(state) in visited:
+        return None
+    new_visited = copy.deepcopy(visited)
+    new_visited.add(str(state))
+    new_moves = copy.deepcopy(moves)
+    new_moves.append(state)
+    for move in state.get_possible_moves():
+        new_state = copy.deepcopy(state)
+        new_state.move(move)
+        result = dfs(new_state, depth+1, new_visited, new_moves, max_depth)
+        if result is not None:
+            return result
+    return None
+
+
+def ids(state: State):
+    for depth in range(0, MAX_DEPTH+1):
+        result = dfs(state, 0, set(), [], depth)
+        if result is not None:
+            return result
+    return None
+
+
+if algorithm_name == "ids":
+    res = ids(state)
+
+
+if res is not None:
+    state, moves = res
+    for move in moves:
+        print(move)
+    print("Number of moves = {}".format(len(moves)-1))
