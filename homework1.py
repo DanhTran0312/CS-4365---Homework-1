@@ -1,72 +1,98 @@
-'''
-Write a program to solve the 8-puzzle problem using each of the following algorithms:
-1. Depth-first search (25 points)
-2. Iterative deepening search (25 points)
-3. A* search using two different suitable heuristics (40 points)
-10 points for analysis section described on the next page.
-Your program should read the initial board configuration from any standard input and print to the
-standard output a sequence of board positions that solves the puzzle (only the path to goal from start),
-the total number of moves and the total number of search states enqueued.
-For each of the above algorithms, expand the search only until depth 10, root being at depth 0. If goal
-state is not reached before or at depth 10, then return a failure message. Example, consider the given
-input and corresponding output sequence.
-Input (Any random position of the tiles):
-6 7 1
-8 2 *
-5 4 3
-Output (List of states starting from input to goal state, if found):
-6 7 1 (Initial input state)
-8 2 *
-5 4 3
-6 7 1
-8 * 2
-5 4 3
-6 7 1
-* 8 2
-5 4 3
-* 7 1
-6 8 2
-5 4 3
-7 * 1
-6 8 2
-5 4 3
-7 8 1 (Goal state)
-6 * 2
-5 4 3
-Number of moves = 5
-Number of states enqueued = 191
-Note: * represents an empty tile
-What to turn in: Your code and a readme file for compiling the code. The readme file should contain the
-following things:
-1. Instructions on how to run the program
-2. Sample input and its corresponding output
-3. Provide a short comparative analysis of two heuristics used for A* (10 points)
-Please make sure your readme file gives clear instructions on how to run the code.
-For example: python homework1.py <algorithm_name> <input_file_path>
-'''
+# Danh Tran - 2023
+# CS 4365 - Assignment 1
 
 import sys
 import copy
+import heapq
+import math
 
 ROW = 3
 COL = 3
-MAX_DEPTH = 10
-GOAL_STATE = """7 8 1
-6 * 2
-5 4 3"""
+MAX_DEPTH = 11
+count = 0
 
-
+# Class to represent a state of the board
+# board: 2D list of the board
+# current_position: tuple of the current position of the empty tile
+# cost: total cost of the state
+# parent: parent state
+# depth: depth of the state
 class State:
-    def __init__(self):
-        self.board = [[None for _ in range(COL)] for _ in range(ROW)]
-        self.current_position : tuple = None
+    def __init__(self, board: list = [[None for _ in range(COL)] for _ in range(ROW)]):
+        self.board = board
+        self.current_position: tuple = None
+        self.cost = 0
+        self.parent = None
+        self.depth = 0
 
+    # Heuristic 1: Number of misplaced tiles
+    # Return the number of misplaced tiles
+    def heuristic1(self):
+        cost = 0
+        for i in range(ROW):
+            for j in range(COL):
+                if self.board[i][j] != GOAL_STATE.board[i][j] and self.board[i][j] != "*":
+                    cost += 1
+        return cost
+
+    # Heuristic 2: Manhattan distance
+    # Return the sum of the Manhattan distances of the tiles from their goal positions
+    def heuristic2(self):
+        cost = 0
+        for i in range(ROW):
+            for j in range(COL):
+                if self.board[i][j] != GOAL_STATE.board[i][j] and self.board[i][j] != "*":
+                    x, y = GOAL_STATE_POSITIONS[self.board[i][j]]
+                    cost += abs(x - i) + abs(y - j)
+        return cost
+
+    # Heuristic: Euclidean distance
+    # Return the sum of the Euclidean distances of the tiles from their goal positions
+    def heuristic3(self):
+        cost = 0
+        for i in range(ROW):
+            for j in range(COL):
+                if self.board[i][j] != GOAL_STATE.board[i][j] and self.board[i][j] != "*":
+                    x, y = GOAL_STATE_POSITIONS[self.board[i][j]]
+                    cost += math.sqrt((x - i) ** 2 + (y - j) ** 2)
+        return cost
+
+    # Move the tile at the given position to the empty tile
     def move(self, new_position: tuple):
         x, y = self.current_position
         new_x, new_y = new_position
         self.board[x][y], self.board[new_x][new_y] = self.board[new_x][new_y], self.board[x][y]
         self.current_position = new_position
-    
+
+    # Get the total cost of the state based on the heuristic function
+    def get_cost(self, heuristic):
+        if heuristic == 1:
+            return self.heuristic1() + self.depth
+        elif heuristic == 2:
+            return self.heuristic2() + self.depth
+        else:
+            return 0
+
+    # Print the board
+    def __str__(self) -> str:
+        return "\n".join([" ".join([str(self.board[i][j]) for j in range(COL)]) for i in range(ROW)])
+
+    # Compare the cost of two states
+    def __lt__(self, o: object) -> bool:
+        return self.cost < o.cost
+
+    # Compare if two states are equal based on the board
+    def __eq__(self, o: object) -> bool:
+        return str(self) == str(o)
+
+    # Hash the state based on the board
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def is_goal(self):
+        return self == GOAL_STATE
+
+    # Get the possible moves from the current state
     def get_possible_moves(self):
         x, y = self.current_position
         moves = []
@@ -80,53 +106,43 @@ class State:
             moves.append((x, y+1))
         return moves
 
-    def __str__(self) -> str:
-        return "\n".join([" ".join([str(self.board[i][j]) for j in range(COL)]) for i in range(ROW)])
-
-
-if len(sys.argv) != 3:
-    print("Please enter the command in the following format: \npython homework1.py <algorithm_name> <input_file_path>")
-    sys.exit(1)
-
-algorithm_name = sys.argv[1]
-input_file_path = sys.argv[2]
-
-if algorithm_name not in ["dfs", "ids", "astar1", "astar2"]:
-    print("Invalid algorithm name")
-    sys.exit(1)
-
-# Read input file and store it in the initial state
-with open(input_file_path, "r") as f:
-    input_list = f.readlines()
-    state = State()
-    for i in range(ROW):
-        for j, value in enumerate(input_list[i].split()):
-            state.board[i][j] = value
-            if (value == "*"):
-                state.current_position = (i, j)
-
-def is_goal(state: State):
-    return str(state) == GOAL_STATE
+# Goal state
+GOAL_STATE = State([[7, 8, 1], [6, '*', 2], [5, 4, 3]])
+# Dictionary to store the goal position of each tile
+GOAL_STATE_POSITIONS = {
+    "1": (0, 2),
+    "2": (1, 2),
+    "3": (2, 2),
+    "4": (0, 1),
+    "5": (1, 1),
+    "6": (2, 1),
+    "7": (0, 0),
+    "8": (1, 0),
+    "*": (2, 0)
+}
 
 def dfs(state: State, depth: int, visited: set, moves: list, max_depth: int = MAX_DEPTH):
-    if is_goal(state):
-        moves.append(state)
-        return state, moves
-    if depth == max_depth:
+    global count
+    
+    if state.is_goal(): # check if the state is the goal state
+        moves.append(state) # add the goal state to the list of moves
+        return state, moves # return the goal state and the list of moves
+    if depth == max_depth: # if the max depth is reached, return None
         return None
-    if str(state) in visited:
+    if state in visited: # if the state has been visited, return None
         return None
-    new_visited = copy.deepcopy(visited)
-    new_visited.add(str(state))
-    new_moves = copy.deepcopy(moves)
-    new_moves.append(state)
-    for move in state.get_possible_moves():
-        new_state = copy.deepcopy(state)
-        new_state.move(move)
-        result = dfs(new_state, depth+1, new_visited, new_moves, max_depth)
-        if result is not None:
+    new_visited = copy.deepcopy(visited) # create a deep copy of the new visited set
+    new_visited.add(state) # add the current state to the new visited set
+    new_moves = copy.deepcopy(moves) # create a new list of moves
+    new_moves.append(state) # add the current state to the list of moves
+    for move in state.get_possible_moves(): # for each possible move
+        new_state = copy.deepcopy(state) # create a new state
+        new_state.move(move) # move the new state
+        result = dfs(new_state, depth+1, new_visited, new_moves, max_depth) # perform DFS with the new state
+        count += 1 # increment the counter
+        if result is not None: # if the result is not None, return the result
             return result
-    return None
+    return None # if the result is None, return None
 
 
 def ids(state: State):
@@ -136,13 +152,104 @@ def ids(state: State):
             return result
     return None
 
+# A* search using two different suitable heuristics
+# heuristic 1: number of misplaced tiles in the board
+# heuristic 2: sum of manhattan distances of each tile from its goal position
+# f(n) = g(n) + h(n) where g(n) is the number of moves from start to n and h(n) is the heuristic value
 
-if algorithm_name == "ids":
-    res = ids(state)
+def astar(state: State, heuristic: int):
+    # initialize variables
+    global count
+    visited = set()
+    queue = []
+    heapq.heappush(queue, state)
+    count += 1
+
+    # while queue is not empty
+    while len(queue) > 0:
+        # get current state
+        current_state = heapq.heappop(queue)
+        # if current state is the goal state
+        if current_state.is_goal():
+            # get path to goal state
+            moves = []
+            while current_state is not None:
+                moves.append(current_state)
+                current_state = current_state.parent
+            moves.reverse()
+            return current_state, moves
+        # if current state has been visited
+        if current_state in visited:
+            # continue
+            continue
+        # add current state to visited
+        visited.add(current_state)
+        # for each possible move
+        for pos in current_state.get_possible_moves():
+            # create new state
+            new_state = copy.deepcopy(current_state)
+            # move new state
+            new_state.move(pos)
+            # set parent of new state
+            new_state.parent = current_state
+            # set depth of new state
+            new_state.depth = current_state.depth + 1
+            # if new state depth is greater than max depth
+            if new_state.depth > MAX_DEPTH:
+                continue
+            # set cost of new state
+            new_state.cost = new_state.get_cost(heuristic)
+            # push new state to queue
+            heapq.heappush(queue, new_state)
+            count += 1
+    # if queue is empty
+    return None
 
 
-if res is not None:
-    state, moves = res
-    for move in moves:
-        print(move)
-    print("Number of moves = {}".format(len(moves)-1))
+def main():
+    global count
+    # Check if the input is valid
+    if len(sys.argv) != 3:
+        print("Please enter the command in the following format: \npython homework1.py <algorithm_name> <input_file_path>")
+        sys.exit(1)
+
+    algorithm_name = sys.argv[1]
+    input_file_path = sys.argv[2]
+
+    if algorithm_name not in ["dfs", "ids", "astar1", "astar2"]:
+        print("Invalid algorithm name")
+        sys.exit(1)
+    # Read input file and store it in the initial state
+    with open(input_file_path, "r") as f:
+        input_list = f.readlines()
+        state = State()
+        for i in range(ROW):
+            for j, value in enumerate(input_list[i].split()):
+                state.board[i][j] = value
+                if (value == "*"):
+                    state.current_position = (i, j)
+
+    if algorithm_name == "ids":
+        res = ids(state)
+    elif algorithm_name == "dfs":
+        res = dfs(state, 0, set(), [])
+    elif algorithm_name == "astar1":
+        res = astar(state, 1)
+    elif algorithm_name == "astar2":
+        res = astar(state, 2)
+    else:
+        print("Invalid algorithm name")
+        sys.exit(1)
+
+    if res is None:
+        print("No solution found: Maximum depth reached")
+    else:
+        for i in res[1]:
+            print(i)
+            print()
+        print("Solution found")
+        print("Number of moves: ", len(res[1])-1)
+        print("Number of nodes expanded: ", count)
+
+if __name__ == "__main__":
+    main()
