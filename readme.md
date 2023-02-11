@@ -6,11 +6,11 @@
 
 ### Usage
 
-* Run 'python3 homework1.py \<algorithm_name\> \<input_file\>' to run the program.
+* Run `python3 homework1.py <algorithm_name> <input_file>` to run the program.
 
-> * \<algorithm_name\> can be 'dfs' 'ids' 'astar1' 'astar2'
+> * `<algorithm_name>` can be `dfs` `ids` `astar1` `astar2`
 
-> * \<input_file\> is the path of the input file
+> * `<input_file>` is the path of the input file
 
 >> * The input file should containing the space separated input state.
 >> * For example - 6 7 1 8 2 * 5 4 3
