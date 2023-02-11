@@ -4,11 +4,10 @@
 import sys
 import copy
 import heapq
-import math
 
 ROW = 3
 COL = 3
-MAX_DEPTH = 11
+MAX_DEPTH = 10
 count = 0
 
 # Class to represent a state of the board
@@ -44,17 +43,6 @@ class State:
                 if self.board[i][j] != GOAL_STATE.board[i][j] and self.board[i][j] != "*":
                     x, y = GOAL_STATE_POSITIONS[self.board[i][j]]
                     cost += abs(x - i) + abs(y - j)
-        return cost
-
-    # Heuristic: Euclidean distance
-    # Return the sum of the Euclidean distances of the tiles from their goal positions
-    def heuristic3(self):
-        cost = 0
-        for i in range(ROW):
-            for j in range(COL):
-                if self.board[i][j] != GOAL_STATE.board[i][j] and self.board[i][j] != "*":
-                    x, y = GOAL_STATE_POSITIONS[self.board[i][j]]
-                    cost += math.sqrt((x - i) ** 2 + (y - j) ** 2)
         return cost
 
     # Move the tile at the given position to the empty tile
@@ -123,7 +111,7 @@ GOAL_STATE_POSITIONS = {
 
 def dfs(state: State, depth: int, visited: set, moves: list, max_depth: int = MAX_DEPTH):
     global count
-    
+    count += 1
     if state.is_goal(): # check if the state is the goal state
         moves.append(state) # add the goal state to the list of moves
         return state, moves # return the goal state and the list of moves
@@ -139,7 +127,7 @@ def dfs(state: State, depth: int, visited: set, moves: list, max_depth: int = MA
         new_state = copy.deepcopy(state) # create a new state
         new_state.move(move) # move the new state
         result = dfs(new_state, depth+1, new_visited, new_moves, max_depth) # perform DFS with the new state
-        count += 1 # increment the counter
+        # increment the counter
         if result is not None: # if the result is not None, return the result
             return result
     return None # if the result is None, return None
@@ -164,7 +152,6 @@ def astar(state: State, heuristic: int):
     queue = []
     heapq.heappush(queue, state)
     count += 1
-
     # while queue is not empty
     while len(queue) > 0:
         # get current state
@@ -208,6 +195,9 @@ def astar(state: State, heuristic: int):
 
 def main():
     global count
+
+    # sample usage
+    # python3 homework1.py dfs 8 * 3 7 1 6 5 2 4
     # Check if the input is valid
     if len(sys.argv) != 3:
         print("Please enter the command in the following format: \npython homework1.py <algorithm_name> <input_file_path>")
@@ -215,18 +205,19 @@ def main():
 
     algorithm_name = sys.argv[1]
     input_file_path = sys.argv[2]
+    
 
     if algorithm_name not in ["dfs", "ids", "astar1", "astar2"]:
         print("Invalid algorithm name")
         sys.exit(1)
     # Read input file and store it in the initial state
     with open(input_file_path, "r") as f:
-        input_list = f.readlines()
+        input_list = f.readline().split(" ")
         state = State()
         for i in range(ROW):
-            for j, value in enumerate(input_list[i].split()):
-                state.board[i][j] = value
-                if (value == "*"):
+            for j in range(COL):
+                state.board[i][j] = input_list[i*COL+j]
+                if state.board[i][j] == "*":
                     state.current_position = (i, j)
 
     if algorithm_name == "ids":
@@ -249,7 +240,7 @@ def main():
             print()
         print("Solution found")
         print("Number of moves: ", len(res[1])-1)
-        print("Number of nodes expanded: ", count)
+        print("Number of states enqueued: ", count)
 
 if __name__ == "__main__":
     main()
